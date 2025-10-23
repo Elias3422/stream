@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV Web Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1c1c1c;
+            color: #ffffff;
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            background: rgba(30, 30, 30, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+            max-width: 800px;
+            width: 100%;
+        }
+        video {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 10px;
+            outline: none;
+            display: none;
+            margin-top: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 28px;
+            color: #ffcc00;
+        }
+        h2 {
+            margin-top: 20px;
+            font-size: 22px;
+            color: #ffffff;
+        }
+        .message {
+            font-size: 18px;
+            margin-top: 20px;
+            color: #ffcc00;
+        }
+        .login, .user-input, .user-overview, .stream-input, .delete-user, .ban-area {
+            margin-bottom: 20px;
+        }
+        .login input {
+            padding: 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            width: 80%;
+            background-color: #2a2a2a;
+            color: white;
+            font-size: 16px;
+        }
+        input[type="number"], select {
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            width: calc(80% - 22px);
+            background-color: #2a2a2a;
+            color: white;
+        }
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .logout {
+            margin-top: 20px;
+        }
+        .logout button {
+            background-color: #f44336;
+        }
+        .logout button:hover {
+            background-color: #e53935;
+        }
+        .stream-list, .timer-ban {
+            margin-top: 20px;
+            text-align: left;
+        }
+        .stream-list ul, .banned-list ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .stream-list li, .banned-list li {
+            margin: 5px 0;
+            cursor: pointer;
+            color: #2196F3;
+            transition: color 0.3s;
+        }
+        .stream-list li:hover, .banned-list li:hover {
+            text-decoration: underline;
+            color: #00acc1;
+        }
+        .timer-info {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        /* Chat Styles */
+        .chat-container {
+            margin-top: 20px;
+            text-align: left;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #2a2a2a;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .chat-message {
+            margin: 5px 0;
+        }
+        .chat-input {
+            display: flex;
+            margin-top: 10px;
+        }
+        .chat-input input {
+            flex: 1;
+        }
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+            button {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IPTV Web Player</h1>
+        <div class="login" id="loginForm">
+            <input type="text" id="username" placeholder="Benutzername" required>
+            <button onclick="login()">Anmelden</button>
+        </div>
+        <video id="iptvPlayer" controls>
+            <source id="streamSource" src="" type="application/x-mpegURL">
+            Dein Browser unterstützt das Video-Tag nicht.
+        </video>
+        <div class="message" id="message" style="display: none;">Wenn der Stream nicht lädt, überprüfen Sie bitte den Link.</div>
+        <div class="logout" id="logoutDiv" style="display: none;">
+            <button onclick="logout()">Abmelden</button>
+        </div>
+        <div class="user-input" id="userInputDiv" style="display: none;">
+            <h2>Benutzer hinzufügen:</h2>
+            <input type="text" id="newUser" placeholder="Neuer Benutzername">
+            <select id="newUserRole">
+                <option value="user">Normaler Benutzer</option>
+                <option value="mod">Moderator</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button onclick="addUser()">Hinzufügen</button>
+        </div>
+        <div class="user-list" id="userListDiv" style="display: none;">
+            <h2>Verfügbare Benutzer:</h2>
+            <ul id="userList"></ul>
+        </div>
+        <div class="banned-list" id="bannedListDiv" style="display: none;">
+            <h2>Gebannte Benutzer:</h2>
+            <ul id="bannedList"></ul>
+            <input type="text" id="userToUnban" placeholder="Benutzer entbannen">
+            <button onclick="unbanUser()">Entbannen</button>
+        </div>
+        <div class="user-overview" id="userOverviewDiv" style="display: none;">
+            <h2>Benutzer Übersicht:</h2>
+            <input type="text" id="userToBan" placeholder="Benutzer bannen">
+            <input type="number" id="banDuration" placeholder="Dauer (min, 5-60)" min="5" max="60">
+            <input type="text" id="banReason" placeholder="Bann Grund">
+            <button onclick="timerBanUser()">Timer Bannen</button>
+        </div>
+        <div class="delete-user" id="deleteUserDiv" style="display: none;">
+            <h2>Benutzer löschen:</h2>
+            <input type="text" id="userToDelete" placeholder="Benutzername löschen">
+            <button onclick="deleteUser()">Löschen</button>
+        </div>
+
+        <!-- Regular Ban Area -->
+        <div class="ban-area" id="banArea" style="display: none;">
+            <h2>Regulärer Bann:</h2>
+            <input type="text" id="userToPermanentBan" placeholder="Benutzer permanent bannen">
+            <input type="text" id="permanentBanReason" placeholder="Bann Grund">
+            <button onclick="permanentBanUser()">Permanent Bannen</button>
+        </div>
+
+        <!-- Public Chat Section -->
+        <div class="chat-container" id="chatContainer" style="display: none;">
+            <h2>Chat:</h2>
+            <div id="chatMessages" class="chat-container"></div>
+            <div class="chat-input">
+                <input type="text" id="chatMessage" placeholder="Nachricht eingeben...">
+                <button onclick="sendMessage()">Senden</button>
+            </div>
+        </div>
+
+        <!-- Bann Info für gebannte Benutzer -->
+        <div id="bannedInfo" style="display: none;">
+            <h2>Sie wurden permanent gebannt!</h2>
+            <p id="banDetails"></p>
+            <button onclick="logout()">Abmelden</button> <!-- Logout-Button für gebannte Benutzer -->
+        </div>
+
+        <!-- Universal Ban Aufheben -->
+        <div id="liftBanArea" style="display: none;">
+            <h2>Ban Aufheben:</h2>
+            <input type="text" id="userToLiftBan" placeholder="Benutzername zum Aufheben des Banns">
+            <button onclick="liftBan()">Aufheben</button> <!-- Universal Entbann-Button -->
+        </div>
+    </div>
+    <script>
+        let users = JSON.parse(localStorage.getItem('users')) || [
+            { username: "admin2024", role: "admin" },
+            { username: "test112", role: "user" }
+        ];
+        const bannedUsers = JSON.parse(localStorage.getItem('bannedUsers')) || [];
+        const timerBans = JSON.parse(localStorage.getItem('timerBans')) || [];
+        let currentUser = null;
+        let chatMessages = JSON.parse(localStorage.getItem('chatMessages')) || [];
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const user = users.find(u => u.username === username);
+
+            if (user) {
+                // Check if the user is banned
+                const activeTimerBan = getActiveTimerBan(username);
+                if (activeTimerBan) {
+                    currentUser = user;
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('bannedInfo').style.display = 'block'; // Show ban info
+                    document.getElementById('banDetails').textContent = `Gebannt bis: ${new Date(activeTimerBan.endTime).toLocaleString()} - Grund: ${activeTimerBan.reason}`;
+                    document.getElementById('iptvPlayer').style.display = 'none'; // Hide video player
+                    document.getElementById('liftBanArea').style.display = 'none'; // Hide ban lift
+                    return; // Exit the function as the user cannot access the stream
+                }
+
+                // Check for permanent bans
+                if (bannedUsers.includes(username)) {
+                    currentUser = user;
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('bannedInfo').style.display = 'block'; // Show permanent ban info
+                    document.getElementById('banDetails').textContent = `Sie wurden permanent gebannt. Grund: ${getPermanentBanReason(username)}`;
+                    document.getElementById('iptvPlayer').style.display = 'none'; // Hide video player
+                    document.getElementById('liftBanArea').style.display = 'none'; // Hide ban lift
+                    return; // Exit the function as the user cannot access the stream
+                }
+
+                // Proceed if the user is not banned
+                currentUser = user;
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('iptvPlayer').style.display = 'block';
+                document.getElementById('logoutDiv').style.display = 'block';
+                document.getElementById('chatContainer').style.display = 'block'; // Show chat container
+
+                const isModOrAdmin = user.role === 'admin' || user.role === 'mod';
+                document.getElementById('userInputDiv').style.display = user.role === 'admin' ? 'block' : 'none';
+                document.getElementById('userListDiv').style.display = user.role === 'admin' ? 'block' : 'none';
+                document.getElementById('bannedListDiv').style.display = isModOrAdmin ? 'block' : 'none';
+                document.getElementById('userOverviewDiv').style.display = isModOrAdmin ? 'block' : 'none';
+                document.getElementById('deleteUserDiv').style.display = user.role === 'admin' ? 'block' : 'none';
+                document.getElementById('banArea').style.display = isModOrAdmin ? 'block' : 'none'; // Show ban area
+                document.getElementById('liftBanArea').style.display = isModOrAdmin ? 'block' : 'none'; // Show lift ban area
+
+                loadUsers();
+                loadChatMessages();
+                playStream("https://fc2de447f304.ngrok-free.app/webcam.m3u8");
+
+            } else {
+                alert('Benutzername ungültig.');
+            }
+        }
+
+        function logout() {
+            currentUser = null;
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('iptvPlayer').style.display = 'none';
+            document.getElementById('logoutDiv').style.display = 'none';
+            document.getElementById('userInputDiv').style.display = 'none';
+            document.getElementById('userListDiv').style.display = 'none';
+            document.getElementById('bannedListDiv').style.display = 'none';
+            document.getElementById('userOverviewDiv').style.display = 'none';
+            document.getElementById('deleteUserDiv').style.display = 'none';
+            document.getElementById('chatContainer').style.display = 'none'; // Hide chat container
+            document.getElementById('bannedInfo').style.display = 'none'; // Hide ban info
+            document.getElementById('banArea').style.display = 'none'; // Hide ban area
+            document.getElementById('liftBanArea').style.display = 'none'; // Hide lift ban area
+        }
+
+        function addUser() {
+            const newUser = document.getElementById('newUser').value;
+            const newUserRole = document.getElementById('newUserRole').value;
+
+            if (currentUser.role === 'admin') {
+                if (!users.some(u => u.username === newUser) && newUser) {
+                    users.push({ username: newUser, role: newUserRole });
+                    localStorage.setItem('users', JSON.stringify(users));
+                    loadUsers();
+                    document.getElementById('newUser').value = ''; // Eingaben leeren
+                } else {
+                    alert('Benutzer existiert bereits oder ungültiger Benutzername.');
+                }
+            } else {
+                alert('Keine Berechtigung zum Hinzufügen von Benutzern.');
+            }
+        }
+
+        function timerBanUser() {
+            const userToBan = document.getElementById('userToBan').value;
+            const banDuration = parseInt(document.getElementById('banDuration').value) * 60 * 1000;
+            const banReason = document.getElementById('banReason').value;
+
+            if (currentUser.role === 'admin' || currentUser.role === 'mod') {
+                if (users.some(u => u.username === userToBan) && !bannedUsers.includes(userToBan) && !isUserTimerBanned(userToBan)) {
+                    const endTime = Date.now() + banDuration;
+                    timerBans.push({ username: userToBan, endTime, reason: banReason });
+                    localStorage.setItem('timerBans', JSON.stringify(timerBans));
+                    loadUsers();
+                    document.getElementById('userToBan').value = '';
+                    document.getElementById('banDuration').value = '';
+                    document.getElementById('banReason').value = '';
+                } else {
+                    alert('Benutzer existiert nicht oder ist bereits gesperrt.');
+                }
+            } else {
+                alert('Keine Berechtigung zum Bannen.');
+            }
+        }
+
+        function isUserTimerBanned(username) {
+            return timerBans.some(b => b.username === username && b.endTime > Date.now());
+        }
+
+        function getActiveTimerBan(username) {
+            return timerBans.find(b => b.username === username && b.endTime > Date.now());
+        }
+
+        function unbanUser() {
+            const userToUnban = document.getElementById('userToUnban').value;
+
+            if (currentUser.role === 'admin' || currentUser.role === 'mod') {
+                // Remove from both timerBans and bannedUsers
+                timerBans = timerBans.filter(b => b.username !== userToUnban);
+                bannedUsers.splice(bannedUsers.indexOf(userToUnban), 1); // Remove from bannedUsers if present
+
+                localStorage.setItem('timerBans', JSON.stringify(timerBans));
+                localStorage.setItem('bannedUsers', JSON.stringify(bannedUsers));
+
+                loadBannedUsers();
+                document.getElementById('userToUnban').value = '';
+                alert(`${userToUnban} wurde entbannt.`);
+            } else {
+                alert('Keine Berechtigung zum Entbannen.');
+            }
+        }
+
+        function liftBan() {
+            const userToLiftBan = document.getElementById('userToLiftBan').value;
+
+            if (currentUser.role === 'admin' || currentUser.role === 'mod') {
+                // Remove the timer ban and permanent ban for the specified user
+                timerBans = timerBans.filter(b => b.username !== userToLiftBan);
+                bannedUsers.splice(bannedUsers.indexOf(userToLiftBan), 1); // Remove from bannedUsers if present
+
+                localStorage.setItem('timerBans', JSON.stringify(timerBans));
+                localStorage.setItem('bannedUsers', JSON.stringify(bannedUsers));
+
+                alert(`Der Bann für ${userToLiftBan} wurde aufgehoben.`);
+                document.getElementById('userToLiftBan').value = ''; // Clear input
+            } else {
+                alert('Keine Berechtigung zum Aufheben des Banns.');
+            }
+        }
+
+        function permanentBanUser() {
+            const userToPermanentBan = document.getElementById('userToPermanentBan').value;
+            const banReason = document.getElementById('permanentBanReason').value;
+
+            if (currentUser.role === 'admin' || currentUser.role === 'mod') {
+                if (users.some(u => u.username === userToPermanentBan) && !bannedUsers.includes(userToPermanentBan)) {
+                    bannedUsers.push(userToPermanentBan);
+                    localStorage.setItem('bannedUsers', JSON.stringify(bannedUsers));
+                    alert(`${userToPermanentBan} wurde dauerhaft gebannt.`);
+                    loadUsers();
+                    document.getElementById('userToPermanentBan').value = '';
+                    document.getElementById('permanentBanReason').value = '';
+                } else {
+                    alert('Benutzer existiert nicht oder ist bereits gesperrt.');
+                }
+            } else {
+                alert('Keine Berechtigung zum permanenten Bannen.');
+            }
+        }
+
+        function deleteUser() {
+            const userToDelete = document.getElementById('userToDelete').value;
+            
+            if (currentUser.role === 'admin') {
+                users = users.filter(u => u.username !== userToDelete);
+                localStorage.setItem('users', JSON.stringify(users));
+                loadUsers();
+                document.getElementById('userToDelete').value = ''; // Eingaben leeren
+            } else {
+                alert('Keine Berechtigung zum Löschen.');
+            }
+        }
+
+        function loadUsers() {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+            users.forEach(user => {
+                if (!bannedUsers.includes(user.username) && !isUserTimerBanned(user.username)) {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = user.username;
+                    userList.appendChild(listItem);
+                }
+            });
+            loadBannedUsers();
+        }
+
+        function loadBannedUsers() {
+            const bannedList = document.getElementById('bannedList');
+            bannedList.innerHTML = '';
+            bannedUsers.forEach(user => {
+                const listItem = document.createElement('li');
+                listItem.textContent = user;
+                bannedList.appendChild(listItem);
+            });
+
+            // Load timer bans and display banned users
+            timerBans.forEach(ban => {
+                if (ban.endTime > Date.now()) {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${ban.username} (gebanned bis: ${new Date(ban.endTime).toLocaleString()}) - Grund: ${ban.reason}`;
+                    bannedList.appendChild(listItem);
+                }
+            });
+        }
+
+        function playStream(stream) {
+            const streamSource = document.getElementById('streamSource');
+            const videoPlayer = document.getElementById('iptvPlayer');
+            streamSource.src = stream;
+            videoPlayer.load();
+            videoPlayer.play();
+        }
+
+        // Chat Funktionen
+        function loadChatMessages() {
+            const chatMessagesContainer = document.getElementById('chatMessages');
+            chatMessagesContainer.innerHTML = ''; // Clear current messages
+            chatMessages.forEach(message => {
+                const messageElement = document.createElement('div');
+                messageElement.className = 'chat-message';
+                messageElement.textContent = message;
+                chatMessagesContainer.appendChild(messageElement);
+            });
+        }
+
+        function sendMessage() {
+            const chatMessageInput = document.getElementById('chatMessage');
+            const message = `${currentUser.username}: ${chatMessageInput.value}`;
+
+            if (chatMessageInput.value.trim() !== '') {
+                chatMessages.push(message);
+                localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+                loadChatMessages();
+                chatMessageInput.value = ''; // Clear input
+            }
+        }
+
+        function getPermanentBanReason(username) {
+            // Placeholder function to get the ban reason for a permanent ban
+            return 'Permanent Bann Grund hier.'; // Hier kann der Grund aus einer Datenquelle bezogen werden
+        }
+
+        function openAdminChat() {
+            alert('Admin Chat wird geöffnet (funktionalität nicht implementiert).');
+        }
+    </script>
+</body>
+</html>
